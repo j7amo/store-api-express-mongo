@@ -5,7 +5,16 @@ const getAllProductsStatic = async (req, res) => {
   const products = await Product.find({
     // featured: true,
     // name: 'vase table',
-  }).sort('-name price');
+  })
+    // here we can chain as many QUERY methods as we want:
+    // documents will be sorted in ascending order by "name" (to make descending: "-name")
+    .sort('name')
+    // documents will have only this field(except there also will be MongoDB "_id" field)
+    .select('name')
+    // number of queried documents (helpful for pagination)
+    .limit(2)
+    // number of documents to skip from the first position (helpful for pagination)
+    .skip(22);
   res.status(200).json({ products, nbHits: products.length });
 };
 
@@ -68,7 +77,8 @@ const getAllProducts = async (req, res) => {
     result = result.sort('createdAt');
   }
 
-  // we can query only those fields that are of interest to user if we want.
+  // we can query ONLY those FIELDS that are OF INTEREST to user if we want so that
+  // the resulting documents will contain ONLY those fields.
   // to do this we:
   // 1) introduce a new query param by the name "fields" (it can have any name we want by the way);
   // 2) destructure it from "req.query";
@@ -78,6 +88,18 @@ const getAllProducts = async (req, res) => {
     const updatedSort = fields.replace(/,/g, ' ');
     result = result.select(updatedSort);
   }
+
+  // To add PAGINATION to the API we need to use "limit" and "skip" queries:
+  // 1) we try to extract the page that user wants to go to (otherwise we use default value)
+  const page = Number(req.query.page) || 1;
+  // 2) we try to extract the limit of documents to show per page (otherwise we use default value)
+  const limit = Number(req.query.limit) || 10;
+  // 3) we get the number of documents to skip (we don't need to show first 10 documents
+  // when we have a "limit" of 10, and we have a "page" of 2, because we want to use only
+  // documents from 11 to 20 in this case):
+  const documentsToSkip = (page - 1) * limit;
+  // 4) we use the "skip" AND "limit" query methods and chain them:
+  result = result.skip(documentsToSkip).limit(limit);
 
   // and when we have the complete query chain we can finally await it:
   const products = await result;
