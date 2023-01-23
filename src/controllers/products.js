@@ -4,8 +4,8 @@ const getAllProductsStatic = async (req, res) => {
   // some basic (but static) filter functionality
   const products = await Product.find({
     // featured: true,
-    name: 'vase table',
-  });
+    // name: 'vase table',
+  }).sort('-name price');
   res.status(200).json({ products, nbHits: products.length });
 };
 
@@ -17,7 +17,9 @@ const getAllProducts = async (req, res) => {
   // then the result of the query will be an empty array because there's no documents
   // in DB with this property
   // const products = await Product.find(req.query);
-  const { featured, company, name } = req.query;
+  const {
+    featured, company, name, sort,
+  } = req.query;
   // the better approach is to:
   // 1) define an object where we'll store the CORRECT (validated) query data
   // 2) check for the properties we expect to be in the query
@@ -45,7 +47,29 @@ const getAllProducts = async (req, res) => {
     };
   }
 
-  const products = await Product.find(queryObject);
+  // to implement SORTING functionality we'll have to change the flow of the code:
+  // Mongoose gives us a "sort" method that we can use by chaining it AFTER the "find" query.
+  // But the problem with our previous setup is that we "await Product.find()" which resolves
+  // to already final data that "sort" CANNOT BE CHAINED FROM! So in order to fix this
+  // we need to postpone "await" UNTIL we HAVE FULL QUERY CHAIN FORMED!
+  let result = Product.find(queryObject);
+
+  // if user provided "sort" query param
+  if (sort) {
+    // we need to create a correct string which basically means that we
+    // must transform for example "name,price" to "name price" (because this is how
+    // we set sorting options in "sort" query method):
+    const updatedSort = sort.replace(',', ' ');
+    // we chain "sort" to the original "Product.find(queryObject)" query:
+    result = result.sort(updatedSort);
+  } else {
+    // let's imagine that the user did not pass any "sort" options BUT
+    // we still want to do some sorting (e.g. by date created)
+    result = result.sort('createdAt');
+  }
+
+  // and when we have the complete query chain we can finally await it:
+  const products = await result;
   res.status(200).json({ products, nbHits: products.length });
 };
 
