@@ -10,7 +10,9 @@ const getAllProductsStatic = async (req, res) => {
 };
 
 const getAllProducts = async (req, res) => {
-  res.status(200).json({ msg: 'products route' });
+  // now we set up super basic DYNAMIC filtering.
+  const products = await Product.find(req.query);
+  res.status(200).json({ products, nbHits: products.length });
 };
 
 module.exports = {
