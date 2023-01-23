@@ -3,18 +3,22 @@ const Product = require('../models/product');
 const getAllProductsStatic = async (req, res) => {
   // some basic (but static) filter functionality
   const products = await Product.find({
+    price: {
+      $gt: 30,
+      $lt: 100,
+    },
     // featured: true,
     // name: 'vase table',
   })
     // here we can chain as many QUERY methods as we want:
     // documents will be sorted in ascending order by "name" (to make descending: "-name")
-    .sort('name')
+    .sort('price')
     // documents will have only this field(except there also will be MongoDB "_id" field)
-    .select('name')
+    .select('name price')
     // number of queried documents (helpful for pagination)
-    .limit(2)
+    .limit(23)
     // number of documents to skip from the first position (helpful for pagination)
-    .skip(22);
+    .skip(0);
   res.status(200).json({ products, nbHits: products.length });
 };
 
@@ -27,7 +31,7 @@ const getAllProducts = async (req, res) => {
   // in DB with this property
   // const products = await Product.find(req.query);
   const {
-    featured, company, name, sort, fields,
+    featured, company, name, sort, fields, numericFilters,
   } = req.query;
   // the better approach is to:
   // 1) define an object where we'll store the CORRECT (validated) query data
@@ -54,6 +58,44 @@ const getAllProducts = async (req, res) => {
       $regex: name,
       $options: 'i',
     };
+  }
+
+  // NUMERIC FILTERING is a different thing. We have to use SPECIAL KEYS ($gt, $lt etc.)
+  if (numericFilters) {
+    // 1) create mappings for characters in the request to characters that is used by MongoDB
+    const operatorMap = {
+      '>': '$gt',
+      '>=': '$gte',
+      '=': '$eq',
+      '<': '$lt',
+      '<=': '$lte',
+    };
+    // 2) define a regular expression to find matches in the request
+    const regEx = /\b(<|>|<=|>=|=)\b/g;
+    // 3) replace original request characters with MongoDB characters (we add "-" characters
+    // here just to use them later for splitting the string by them)
+    let filters = numericFilters.replace(
+      regEx,
+      (match) => `-${operatorMap[match]}-`,
+    );
+    // 4) define filtering options that are available for filtering
+    const supportedOptions = ['price', 'rating'];
+    // 5) split filters string (e.g. "price-$gt-40,rating-$gte-4") into an array
+    filters = filters.split(',');
+    // 6) iterate over individual filter strings
+    filters.forEach((item) => {
+      // 7) split them again by "-"(which we prepared previously)
+      const [field, operator, value] = item.split('-');
+      // 8) check if the field value is supported
+      if (supportedOptions.includes(field)) {
+        // 9) dynamically create field on the "queryObject" (which we pass to "find" query later)
+        // which value is another object (this is a constraint from Mongoose)
+        queryObject[field] = {
+          // 10) dynamically create "operator-value" pairs
+          [operator]: Number(value) || 0,
+        };
+      }
+    });
   }
 
   // to implement SORTING functionality we'll have to change the flow of the code:
