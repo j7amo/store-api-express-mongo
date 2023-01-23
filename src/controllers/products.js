@@ -18,7 +18,7 @@ const getAllProducts = async (req, res) => {
   // in DB with this property
   // const products = await Product.find(req.query);
   const {
-    featured, company, name, sort,
+    featured, company, name, sort, fields,
   } = req.query;
   // the better approach is to:
   // 1) define an object where we'll store the CORRECT (validated) query data
@@ -59,13 +59,24 @@ const getAllProducts = async (req, res) => {
     // we need to create a correct string which basically means that we
     // must transform for example "name,price" to "name price" (because this is how
     // we set sorting options in "sort" query method):
-    const updatedSort = sort.replace(',', ' ');
+    const updatedSort = sort.replace(/,/g, ' ');
     // we chain "sort" to the original "Product.find(queryObject)" query:
     result = result.sort(updatedSort);
   } else {
     // let's imagine that the user did not pass any "sort" options BUT
     // we still want to do some sorting (e.g. by date created)
     result = result.sort('createdAt');
+  }
+
+  // we can query only those fields that are of interest to user if we want.
+  // to do this we:
+  // 1) introduce a new query param by the name "fields" (it can have any name we want by the way);
+  // 2) destructure it from "req.query";
+  // 3) check if it was provided in the request;
+  // 4) do the same thing as with "sort" functionality (replacing, chaining corresponding method).
+  if (fields) {
+    const updatedSort = fields.replace(/,/g, ' ');
+    result = result.select(updatedSort);
   }
 
   // and when we have the complete query chain we can finally await it:
