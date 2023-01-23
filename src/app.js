@@ -1,5 +1,8 @@
 const express = require('express');
 require('dotenv').config();
+// instead of async wrapper that we used in previous project,
+// we now use 3rd party package for this:
+require('express-async-errors');
 
 const PORT = process.env.PORT || 3000;
 const notFoundMiddleware = require('./middleware/not-found');
@@ -8,8 +11,6 @@ const connectDB = require('./db/connect');
 const productsRouter = require('./routes/products');
 
 const app = express();
-
-// async errors
 
 // middlewares
 app.use(express.json());
