@@ -1,5 +1,5 @@
 {
-  "name": "store",
+  "name": "store-api-express-mongo",
   "version": "1.0.0",
   "description": "",
   "main": "src/app.js",
